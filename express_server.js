@@ -4,16 +4,36 @@ const app = express();
 const PORT = 8080; // default port 8080
 app.set("view engine", "ejs");
 
+const users = {
+  userRandomID: {
+    id: "userRandomID",
+    email: "user@example.com",
+    password: "purple-monkey-dinosaur",
+  },
+  user2RandomID: {
+    id: "user2RandomID",
+    email: "user2@example.com",
+    password: "dishwasher-funk",
+  },
+};
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
 };
-let length = 6;
-let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+const length = 6;
+const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 function generateRandomString(length, chars){
   var result = '';
     for (let i = length; i > 0; --i) result += chars[Math.floor(Math.random() * chars.length)];
     return result;
+}
+function findUserByEmail(email) {
+  for (let keys in users) {
+    if (users[keys].email === email) {
+      return users[keys];
+    }
+  }
+  return null;
 }
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -37,8 +57,7 @@ app.get("/set", (req, res) => {
  });
  app.get("/urls", (req, res) => {
   const templateVars = {
-    username: req.cookies["username"],
-
+    user: users[req.cookies["user_id"]],
     urls: urlDatabase
   };
   res.render("urls_index", templateVars);
@@ -46,15 +65,48 @@ app.get("/set", (req, res) => {
 });
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    username: req.cookies["username"],
+    user: users[req.cookies["user_id"]],
   };
   res.render("urls_new",templateVars);
 });
 app.get("/urls/:id", (req, res) => {
   const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id],
-  username: req.cookies["username"],};
+    user: users[req.cookies["user_id"]],
+};
   res.render("urls_show", templateVars);
 });
+app.get("/register", (req, res) => {
+  const templateVars = {
+    user: users[req.cookies["user_id"]],
+  };
+  res.render("user_registration",templateVars);
+})
+app.get("/login", (req, res) => {
+  const templateVars = {
+    user: users[req.cookies["user_id"]],
+  };
+  res.render("user_login", templateVars)
+})
+app.post("/register", (req, res) => {
+  let id = generateRandomString(length,chars)
+  const email = req.body.email;
+  const password = req.body.password;
+  if (email === "" || password === "") {
+    res.status(400)
+    .send("Input can not be empty!")
+  }
+  if(findUserByEmail(email) === null) { 
+  const newUser = {
+    id: id,
+    email: email,
+    password: password
+  };
+  users[id] = newUser;
+  res.cookie("user_id", id)
+  res.redirect("/urls")
+} else { res.status(400).send("email already registered.")}
+  console.log(users);
+})
 app.post("/urls", (req, res) => {
   console.log(req.body); // Log the POST request body to the console
   let id = generateRandomString(length,chars)
@@ -65,7 +117,8 @@ app.post("/urls", (req, res) => {
 
 app.post("/urls/:id", (req, res) => {
   const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id],
-    username: req.cookies["username"],};
+    user: users[req.cookies["user_id"]],
+  };
   res.render("urls_show", templateVars);
   
 });
@@ -78,18 +131,30 @@ app.post("/urls/:id/delete", (req, res) => {
   res.redirect("/urls")
 });
 app.post("/login", (req, res) => {
-  const username = req.body.username
-  console.log(username);
-  res.cookie("username", username) // creates a cookie
+  const email = req.body.email
+  const password = req.body.password
+  //console.log(username);
+  const user = findUserByEmail(email)
+  console.log(users)
+  if(user.password !== password){
+    return res.status(403).send("wrong password")
+  }
+  if (user) {
+  res.cookie("user_id", user.id)  // creates a cookie
   res.redirect("/urls")
-  /*let ID = req.params.id
-  res.cookie("ID",ID)
-  console.log("test")
-  res.redirect("/urls")*/
+  } else {
+    res.status(403).send("email not registered")
+  }
+})
+app.post("/redirect", (req, res) => {
+  res.redirect("/login")
+})
+app.post("/registration", (req, res) => {
+  res.redirect("/register")
 })
 app.post("/logout", (req, res) =>{
   // destroys cookie
-  res.clearCookie("username")
+  res.clearCookie("user_id")
   res.redirect("/urls")
 })
 
