@@ -6,7 +6,7 @@ function findUserByEmail(email,users) {
       break;
     }
   }
-  console.log("user", user)
   return user;
 }
+
 module.exports = { findUserByEmail }
