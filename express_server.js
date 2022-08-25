@@ -35,10 +35,10 @@ const urlDatabase = {
     longUrl: "https://www.google.ca",
     userID: "aJ48lW",
   },
-}; 
+};
 // function that selects urls that belong to a user using the user's ID
 function urlsForUser(ID,) {
-  let urlsToShow = []
+  const urlsToShow = []
   for (let key in urlDatabase) {
     if (ID === urlDatabase[key].userID) {
       let urlObj = {
@@ -99,38 +99,41 @@ app.get("/urls/new", (req, res) => {
 
 
 app.get("/urls/:id", (req, res) => {
+
   const val = req.session.user_id
   const myUrl = urlsForUser(val)
 
-  // check if val is a real user 
-  if (users[val]) {
-    for (let i of myUrl) {
-      if (i.userId !== val) {
-        res.send("you can not access urls that you don't own.")
-      } else if (i.userId === val) {
-        if (urlDatabase.hasOwnProperty(req.params.id)) {
-          const templateVars = {
-            id: req.params.id, longURL: urlDatabase[req.params.id].longUrl,
-            user: users[val],
-          };
-          res.render("urls_show", templateVars);
-        } else {
-          res.send("id not found")
-        }
-      }
+  // checks if user is logged in
+  if (!users[val]) {
+    return res.send("Please login to access urls!")
+  }
+  if (!urlDatabase.hasOwnProperty(req.params.id)) {
+   return res.send("Url ID not found!")
+  }
+
+  // checks if the user owns the url id they are trying to access and responds accordingly
+  for (let i of myUrl) {
+
+    if (i.shortUrl === req.params.id) {
+      const templateVars = {
+        id: req.params.id, longURL: urlDatabase[req.params.id].longUrl,
+        user: users[val],
+      };
+      return res.render("urls_show", templateVars);
     }
   }
-  res.send("Please login to access urls!")
+
+  return res.send("You can not access url ID which does not belong to you.")
+
+
 });
 
 
 app.get("/u/:id", (req, res) => {
   if (urlDatabase.hasOwnProperty(req.params.id)) {
-    const templateVars = {
-      id: req.params.id, longURL: urlDatabase[req.params.id].longUrl
-    };
-    res.render("longUrl_show", templateVars)
-  } 
+    const longUrl = urlDatabase[req.params.id].longUrl
+    res.redirect(longUrl)
+  }
   else {
     res.send("url not found!")
   }
@@ -165,7 +168,7 @@ app.get("/login", (req, res) => {
 
 
 app.post("/register", (req, res) => {
-  let id = generateRandomString(length, chars)
+  const id = generateRandomString(length, chars)
   const email = req.body.email;
   const password = req.body.password;
   if (email === "" || password === "") {
@@ -192,9 +195,9 @@ app.post("/urls/new", (req, res) => {
   if (!users[val]) {
     return res.send("you have to login to create short urls.")
   } else {
-    let id = generateRandomString(length, chars)
-    urlDatabase[id] = { longUrl: req.body['longURL'], userID: val}
-    res.redirect("/urls/" + id)
+    const id = generateRandomString(length, chars)
+    urlDatabase[id] = { longUrl: req.body['longURL'], userID: val }
+    res.redirect("/urls")
   }
 });
 
@@ -210,11 +213,12 @@ app.post("/urls/:id", (req, res) => {
       res.send("you can not access urls that you don't own.")
     } else if (i.userId === val && i.shortUrl === req.params.id) {
       urlDatabase[req.params.id].longUrl = req.body['longURL']
+      res.redirect("/urls")
+
     } else {
       res.send("url not found")
     }
   }
-  res.redirect("/urls")
 });
 
 
@@ -227,10 +231,9 @@ app.post("/urls/:id/delete", (req, res) => {
   for (let i of myUrl) {
     if (i.userId !== val) {
       res.send("you can not access urls that you don't own.")
-    } else if (i.userId === val && val.shortUrl === req.params.id) {
+    }
+    else {
       delete urlDatabase[req.params.id]
-    } else {
-      res.send("url not found")
     }
   }
   res.redirect("/urls")
